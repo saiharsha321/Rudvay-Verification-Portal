@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'ADMIN' || request.auth.token.admin == true);
+    }
+    
+    function isCoordinator() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'COORDINATOR' || request.auth.token.coordinator == true);
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAdmin();
+    }
+    
+    // Coordinators Collection
+    match /coordinators/{coordinatorId} {
+      allow read: if isAdmin() || (isCoordinator() && request.auth.uid == coordinatorId);
+      allow write: if isAdmin();
+    }
+    
+    // Events Collection
+    match /events/{eventId} {
+      allow read: if isAdmin() || (isCoordinator() && resource.data.coordinatorId == request.auth.uid);
+      allow create: if isCoordinator() && request.resource.data.coordinatorId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isCoordinator() && resource.data.coordinatorId == request.auth.uid);
+    }
+    
+    // Templates Collection
+    match /templates/{templateId} {
+      allow read: if isAdmin() || (isCoordinator() && resource.data.ownerId == request.auth.uid);
+      allow create: if isCoordinator() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isCoordinator() && resource.data.ownerId == request.auth.uid);
+    }
+    
+    // Template Versions Collection
+    match /templateVersions/{versionId} {
+      allow read: if isAdmin() || isCoordinator();
+      allow create: if isAdmin() || isCoordinator();
+      // Immutable versions: no update or delete allowed once created
+      allow update, delete: if isAdmin();
+    }
+    
+    // Certificates Collection - NO PUBLIC DIRECT ACCESS
+    // Public queries must go through Python cloud function endpoint to avoid leaking private fields
+    match /certificates/{certificateId} {
+      allow read: if isAdmin() || (isCoordinator() && resource.data.coordinatorId == request.auth.uid);
+      // Issuance and revocation are handled via server-side Admin SDK
+      allow write: if isAdmin();
+    }
+    
+    // Generation Jobs Collection
+    match /generationJobs/{jobId} {
+      allow read: if isAdmin() || (isCoordinator() && resource.data.coordinatorId == request.auth.uid);
+      allow create: if isCoordinator() && request.resource.data.coordinatorId == request.auth.uid;
+      allow update: if isAdmin() || (isCoordinator() && resource.data.coordinatorId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Generation Items Collection
+    match /generationItems/{itemId} {
+      allow read: if isAdmin() || isCoordinator();
+      allow write: if isAdmin();
+    }
+    
+    // Email Logs Collection
+    match /emailLogs/{emailLogId} {
+      allow read: if isAdmin() || isCoordinator();
+      allow write: if isAdmin();
+    }
+    
+    // Audit Logs Collection - Admin read only, server write only
+    match /auditLogs/{auditLogId} {
+      allow read: if isAdmin();
+      allow write: if false; // Server-side Admin SDK only
+    }
+    
+    // System Settings (SMTP configs) - Strictly closed to clients
+    match /systemSettings/{settingId} {
+      allow read, write: if false; // Server-side Admin SDK only
+    }
+  }
+}
