@@ -53,11 +53,11 @@ export default function NewTemplatePage() {
     if (!file) return;
 
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-    setTemplateName(fileNameWithoutExt || "My Custom Template");
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
+      setTemplateName(fileNameWithoutExt || "My Custom Template");
       setSelectedDesign({
         width: 842,
         height: 595,

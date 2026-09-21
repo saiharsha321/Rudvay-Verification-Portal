@@ -154,6 +154,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     }
   );
 
+  React.useEffect(() => {
+    if (initialDesign) {
+      setDesign(initialDesign);
+    }
+  }, [initialDesign]);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [customTagInput, setCustomTagInput] = useState("");
   const [dragInfo, setDragInfo] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
