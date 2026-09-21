@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
+import { getAppBaseUrl } from "@/lib/utils/url";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest) {
     const duration = body.duration || "20 Hours";
     const templateId = body.templateId || "tpl_classic_gold";
     const certificateId = "RT-2026-PREVIEW";
+    const baseUrl = getAppBaseUrl(req);
 
     const pdfBytes = await generateCertificatePdf({
       certificateId,
@@ -21,7 +23,8 @@ export async function POST(req: NextRequest) {
       duration,
       templateId,
       issuerName: "Rudvay Tech",
-      verificationUrl: `http://localhost:3000/verify/${certificateId}`
+      verificationUrl: `${baseUrl}/verify/${certificateId}`,
+      rowData: body.rowData || body
     });
 
     return new NextResponse(Buffer.from(pdfBytes), {

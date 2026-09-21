@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveCert, CertRecord } from "@/lib/certificates/store";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
 import { sendCertificateEmail } from "@/lib/email/service";
+import { getAppBaseUrl } from "@/lib/utils/url";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest) {
       rand += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const certId = `RT-${new Date().getFullYear()}-${rand}`;
+    const baseUrl = getAppBaseUrl(req);
+    const verificationUrl = `${baseUrl}/verify/${certId}`;
 
     const newCert: CertRecord = {
       certificateId: certId,
@@ -24,7 +27,8 @@ export async function POST(req: NextRequest) {
       duration: body.duration || "20 Hours",
       templateId: body.templateId || "tpl_classic_gold",
       issuerName: "Rudvay Tech",
-      verificationUrl: `http://localhost:3000/verify/${certId}`
+      verificationUrl,
+      rowData: body
     };
 
     await saveCert(newCert);
@@ -42,7 +46,8 @@ export async function POST(req: NextRequest) {
           duration: newCert.duration,
           templateId: newCert.templateId,
           issuerName: newCert.issuerName,
-          verificationUrl: newCert.verificationUrl
+          verificationUrl: newCert.verificationUrl,
+          rowData: body
         });
 
         emailStatus = await sendCertificateEmail({

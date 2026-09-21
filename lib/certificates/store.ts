@@ -14,6 +14,7 @@ export interface CertRecord {
   issuerName?: string;
   revocationReason?: string;
   verificationUrl: string;
+  rowData?: Record<string, any>;
   createdAt?: string;
   updatedAt?: string;
 }

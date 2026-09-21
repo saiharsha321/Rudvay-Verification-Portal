@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { saveCert, CertRecord } from "@/lib/certificates/store";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
 import { sendCertificateEmail } from "@/lib/email/service";
+import { getAppBaseUrl } from "@/lib/utils/url";
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,7 @@ export async function POST(
 ) {
   try {
     const { id } = params;
+    const baseUrl = getAppBaseUrl(req);
     let job: any = null;
 
     if (db) {
@@ -44,7 +46,8 @@ export async function POST(
           duration: item.duration,
           templateId: job.templateId,
           issuerName: "Rudvay Tech",
-          verificationUrl: `http://localhost:3000/verify/${item.certificateId}`
+          verificationUrl: `${baseUrl}/verify/${item.certificateId}`,
+          rowData: item.rowData
         };
         await saveCert(newCert);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCert } from "@/lib/certificates/store";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
+import { getAppBaseUrl } from "@/lib/utils/url";
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +14,8 @@ export async function GET(
     return NextResponse.json({ detail: "Certificate not found" }, { status: 404 });
   }
 
+  const baseUrl = getAppBaseUrl(req);
+
   const pdfBytes = await generateCertificatePdf({
     certificateId: cert.certificateId,
     recipientName: cert.recipientName || "Participant",
@@ -22,7 +25,8 @@ export async function GET(
     duration: cert.duration || "20 Hours",
     templateId: cert.templateId,
     issuerName: cert.issuerName || "Rudvay Tech",
-    verificationUrl: cert.verificationUrl || `http://localhost:3000/verify/${cert.certificateId}`
+    verificationUrl: cert.verificationUrl || `${baseUrl}/verify/${cert.certificateId}`,
+    rowData: cert.rowData
   });
 
   return new NextResponse(Buffer.from(pdfBytes), {
