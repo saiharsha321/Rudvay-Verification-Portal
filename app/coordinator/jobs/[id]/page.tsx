@@ -111,11 +111,17 @@ export default function JobDetailsPage() {
     );
   }
 
-  const total = job.totalRecords || 1;
-  const processed = job.processedRecords || 0;
-  const success = job.successfulRecords || 0;
-  const failed = job.failedRecords || 0;
+  const derivedProcessed = items.filter((i) => i.status === "SUCCESS" || i.status === "COMPLETED" || i.status === "FAILED").length;
+  const derivedSuccess = items.filter((i) => i.status === "SUCCESS" || i.status === "COMPLETED").length;
+  const derivedFailed = items.filter((i) => i.status === "FAILED").length;
+
+  const total = job.totalRecords || items.length || 1;
+  const processed = Math.max(job.processedCount ?? job.processedRecords ?? 0, derivedProcessed);
+  const success = Math.max(job.successCount ?? job.successfulRecords ?? 0, derivedSuccess);
+  const failed = Math.max(job.failedCount ?? job.failedRecords ?? 0, derivedFailed);
   const percent = Math.min(100, Math.round((processed / total) * 100));
+
+  const isJobFinished = job.status === "COMPLETED" || job.status === "FINISHED" || (processed >= total && total > 0);
 
   return (
     <RoleGuard allowedRoles={["COORDINATOR", "ADMIN"]}>
@@ -136,7 +142,7 @@ export default function JobDetailsPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              {job.status !== "COMPLETED" && (
+              {!isJobFinished && (
                 <button
                   onClick={handleStartAutoRunner}
                   disabled={isProcessing}
@@ -217,15 +223,17 @@ export default function JobDetailsPage() {
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {items.map((item, idx) => {
-                  const isSuccess = item.status === "SUCCESS";
+                  const isSuccess = item.status === "SUCCESS" || item.status === "COMPLETED";
                   const isFailed = item.status === "FAILED";
                   const rowData = item.rowData || {};
+                  const recipientName = item.recipientName || rowData.name || "Recipient";
+                  const recipientEmail = item.recipientEmail || rowData.email || "—";
 
                   return (
                     <tr key={idx} className="hover:bg-slate-900/40">
                       <td className="py-3 px-4 font-mono">{item.rowNumber || idx + 1}</td>
-                      <td className="py-3 px-4 font-semibold text-white">{rowData.name}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400">{item.recipientEmail || rowData.email}</td>
+                      <td className="py-3 px-4 font-semibold text-white">{recipientName}</td>
+                      <td className="py-3 px-4 font-mono text-slate-400">{recipientEmail}</td>
                       <td className="py-3 px-4 font-mono text-brand-400">
                         {item.certificateId || "—"}
                       </td>
