@@ -27,6 +27,8 @@ import {
   FileUp
 } from "lucide-react";
 
+import { uploadTemplateImageToCloudinary } from "@/lib/templates/cloudinary";
+
 export interface TemplateElement {
   id: string;
   type: "TEXT" | "QR" | "LINE" | "RECTANGLE" | "IMAGE";
@@ -226,19 +228,19 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   };
 
   // Background Image Handler
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const imageUrl = await uploadTemplateImageToCloudinary(file);
       setDesign(prev => ({
         ...prev,
-        backgroundImage: dataUrl,
-        border: { ...prev.border, style: "none" } // Disable border default so custom background shows full
+        backgroundImage: imageUrl,
+        border: { ...prev.border, style: "none" }
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error("Cloudinary upload failed:", err);
+    }
     e.target.value = "";
   };
 

@@ -13,6 +13,8 @@ import {
   SAMPLE_TEMPLATE_TESTING1 
 } from "@/lib/templates/default-templates";
 
+import { uploadTemplateImageToCloudinary } from "@/lib/templates/cloudinary";
+
 export default function NewTemplatePage() {
   const router = useRouter();
   const [templateName, setTemplateName] = useState("Custom Certificate Template");
@@ -48,21 +50,19 @@ export default function NewTemplatePage() {
     setSelectedDesign({ ...preset.template.designJson });
   };
 
-  const handleCustomImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const imageUrl = await uploadTemplateImageToCloudinary(file);
       setTemplateName(fileNameWithoutExt || "My Custom Template");
       setSelectedDesign({
         width: 842,
         height: 595,
         backgroundColor: "#FFFFFF",
-        backgroundImage: dataUrl,
+        backgroundImage: imageUrl,
         accentColor: "#2563EB",
         border: {
           style: "none",
@@ -141,8 +141,9 @@ export default function NewTemplatePage() {
           }
         ]
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error("Cloudinary upload failed:", err);
+    }
     e.target.value = "";
   };
 

@@ -100,7 +100,12 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
       const bgData = (design as any).backgroundImage as string;
       let imgBuffer: Uint8Array | null = null;
       let isPng = true;
-      if (bgData.startsWith("data:image/png;base64,")) {
+      if (bgData.startsWith("http://") || bgData.startsWith("https://")) {
+        const resp = await fetch(bgData);
+        const arrayBuf = await resp.arrayBuffer();
+        imgBuffer = new Uint8Array(arrayBuf);
+        isPng = bgData.toLowerCase().includes(".png") || bgData.toLowerCase().includes("png");
+      } else if (bgData.startsWith("data:image/png;base64,")) {
         const base64Str = bgData.replace(/^data:image\/png;base64,/, "");
         imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
         isPng = true;
@@ -263,7 +268,12 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
           const imgData = elem.content;
           let imgBuffer: Uint8Array | null = null;
           let isPng = true;
-          if (imgData.startsWith("data:image/png;base64,")) {
+          if (imgData.startsWith("http://") || imgData.startsWith("https://")) {
+            const resp = await fetch(imgData);
+            const arrayBuf = await resp.arrayBuffer();
+            imgBuffer = new Uint8Array(arrayBuf);
+            isPng = imgData.toLowerCase().includes(".png") || imgData.toLowerCase().includes("png");
+          } else if (imgData.startsWith("data:image/png;base64,")) {
             const base64Str = imgData.replace(/^data:image\/png;base64,/, "");
             imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
             isPng = true;
