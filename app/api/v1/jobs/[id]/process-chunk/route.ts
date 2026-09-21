@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveCert, CertRecord } from "@/lib/certificates/store";
+import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
+import { sendCertificateEmail } from "@/lib/email/service";
 
 export async function POST(
   req: NextRequest,
@@ -21,23 +23,59 @@ export async function POST(
     const toProcess = pendingItems.slice(0, chunkSize);
 
     for (const item of toProcess) {
-      const newCert: CertRecord = {
-        certificateId: item.certificateId,
-        status: "VALID",
-        recipientName: item.recipientName,
-        recipientEmail: item.recipientEmail,
-        courseName: item.courseName,
-        eventName: item.eventName,
-        issueDate: item.issueDate,
-        duration: item.duration,
-        templateId: job.templateId,
-        issuerName: "Rudvay Tech",
-        verificationUrl: `http://localhost:3000/verify/${item.certificateId}`
-      };
-      saveCert(newCert);
-      item.status = "COMPLETED";
-      job.processedCount += 1;
-      job.successCount += 1;
+      try {
+        const newCert: CertRecord = {
+          certificateId: item.certificateId,
+          status: "VALID",
+          recipientName: item.recipientName,
+          recipientEmail: item.recipientEmail,
+          courseName: item.courseName,
+          eventName: item.eventName,
+          issueDate: item.issueDate,
+          duration: item.duration,
+          templateId: job.templateId,
+          issuerName: "Rudvay Tech",
+          verificationUrl: `http://localhost:3000/verify/${item.certificateId}`
+        };
+        saveCert(newCert);
+
+        // Generate PDF and send email automatically if recipientEmail is provided
+        if (item.recipientEmail) {
+          try {
+            const pdfBytes = await generateCertificatePdf({
+              certificateId: item.certificateId,
+              recipientName: item.recipientName,
+              courseName: item.courseName,
+              eventName: item.eventName,
+              issueDate: item.issueDate,
+              duration: item.duration,
+              templateId: job.templateId,
+              issuerName: "Rudvay Tech",
+              verificationUrl: newCert.verificationUrl
+            });
+
+            await sendCertificateEmail({
+              toEmail: item.recipientEmail,
+              recipientName: item.recipientName,
+              courseName: item.courseName,
+              certificateId: item.certificateId,
+              pdfBuffer: pdfBytes,
+              verificationUrl: newCert.verificationUrl
+            });
+          } catch (emailErr: any) {
+            console.warn(`[Bulk Email Warning] Failed to send email for ${item.certificateId}:`, emailErr.message);
+          }
+        }
+
+        item.status = "COMPLETED";
+        job.processedCount = (job.processedCount || 0) + 1;
+        job.successCount = (job.successCount || 0) + 1;
+      } catch (itemErr: any) {
+        item.status = "FAILED";
+        item.errorMessage = itemErr.message;
+        job.processedCount = (job.processedCount || 0) + 1;
+        job.failedCount = (job.failedCount || 0) + 1;
+      }
     }
 
     if (job.processedCount >= job.totalRecords) {
