@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveCert, CertRecord } from "@/lib/certificates/store";
+import { db } from "@/lib/firebase/client";
+import { doc, setDoc } from "firebase/firestore";
 
 export interface BulkJobItem {
   itemId: string;
@@ -28,9 +29,6 @@ export interface BulkJob {
   items: BulkJobItem[];
   createdAt: string;
 }
-
-const globalJobs: Record<string, BulkJob> = (globalThis as any).__rudvay_bulk_jobs || {};
-(globalThis as any).__rudvay_bulk_jobs = globalJobs;
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,7 +71,9 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString()
     };
 
-    globalJobs[jobId] = newJob;
+    if (db) {
+      await setDoc(doc(db, "generationJobs", jobId), newJob, { merge: true });
+    }
 
     return NextResponse.json({
       jobId,

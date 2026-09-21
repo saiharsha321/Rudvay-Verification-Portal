@@ -1,20 +1,5 @@
-import fs from "fs";
-import path from "path";
 import { db } from "../firebase/client";
-import { doc, setDoc } from "firebase/firestore";
-
-async function syncCertToFirestore(cert: CertRecord) {
-  try {
-    if (db && cert.certificateId) {
-      await setDoc(doc(db, "certificates", cert.certificateId), {
-        ...cert,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    }
-  } catch (err) {
-    console.warn("Firestore sync notice (certificate):", err);
-  }
-}
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 
 export interface CertRecord {
   certificateId: string;
@@ -29,6 +14,8 @@ export interface CertRecord {
   issuerName?: string;
   revocationReason?: string;
   verificationUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const DEFAULT_CERTS: Record<string, CertRecord> = {
@@ -55,109 +42,73 @@ const DEFAULT_CERTS: Record<string, CertRecord> = {
     duration: "30 Hours",
     issuerName: "Rudvay Tech",
     verificationUrl: "http://localhost:3000/verify/RT-2026-9A8B7C"
-  },
-  "RT-2026-REVOKED": {
-    certificateId: "RT-2026-REVOKED",
-    status: "REVOKED",
-    recipientName: "Malicious / Incomplete Entry",
-    recipientEmail: "revoked@example.com",
-    courseName: "Python Cybersecurity Workshop",
-    eventName: "Cyber Tech Summit 2026",
-    issueDate: "2026-09-08",
-    duration: "20 Hours",
-    issuerName: "Rudvay Tech",
-    revocationReason: "Disciplinary requirement violation",
-    verificationUrl: "http://localhost:3000/verify/RT-2026-REVOKED"
   }
 };
 
-// Global in-memory cache to prevent resets on hot-reloading
-const globalStore = (globalThis as any).__rudvay_certs_store || { ...DEFAULT_CERTS };
-(globalThis as any).__rudvay_certs_store = globalStore;
-
-const STORAGE_FILE = path.join(process.cwd(), "certificates_data.json");
-
-function loadFromDisk(): Record<string, CertRecord> {
-  try {
-    if (fs.existsSync(STORAGE_FILE)) {
-      const data = fs.readFileSync(STORAGE_FILE, "utf-8");
-      const parsed = JSON.parse(data);
-      return { ...DEFAULT_CERTS, ...globalStore, ...parsed };
-    }
-  } catch (e) {
-    // Ignore error
-  }
-  return { ...DEFAULT_CERTS, ...globalStore };
-}
-
-function saveToDisk(store: Record<string, CertRecord>) {
-  try {
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(store, null, 2), "utf-8");
-  } catch (e) {
-    // Ignore error
-  }
-}
-
-export function getCert(id: string): CertRecord | undefined {
+export async function getCert(id: string): Promise<CertRecord | undefined> {
   if (!id) return undefined;
   const normalizedId = id.trim().toUpperCase();
-  
-  // Try memory first
-  if (globalStore[normalizedId]) {
-    return globalStore[normalizedId];
-  }
-  if (globalStore[id]) {
-    return globalStore[id];
-  }
-  
-  // Check disk
-  const disk = loadFromDisk();
-  if (disk[normalizedId]) {
-    globalStore[normalizedId] = disk[normalizedId];
-    return disk[normalizedId];
-  }
-  if (disk[id]) {
-    globalStore[id] = disk[id];
-    return disk[id];
+
+  try {
+    if (db) {
+      const snap = await getDoc(doc(db, "certificates", normalizedId));
+      if (snap.exists()) {
+        return snap.data() as CertRecord;
+      }
+    }
+  } catch (err) {
+    console.warn("Firestore cert fetch notice:", err);
   }
 
-  return undefined;
+  return DEFAULT_CERTS[normalizedId];
 }
 
-export function saveCert(cert: CertRecord): CertRecord {
+export async function saveCert(cert: CertRecord): Promise<CertRecord> {
   const normalizedId = cert.certificateId.trim().toUpperCase();
-  const fullCert = { ...cert, certificateId: normalizedId };
-  
-  globalStore[normalizedId] = fullCert;
-  (globalThis as any).__rudvay_certs_store = globalStore;
+  const fullCert: CertRecord = {
+    ...cert,
+    certificateId: normalizedId,
+    updatedAt: new Date().toISOString()
+  };
 
-  const disk = loadFromDisk();
-  disk[normalizedId] = fullCert;
-  saveToDisk(disk);
-
-  syncCertToFirestore(fullCert);
+  try {
+    if (db) {
+      await setDoc(doc(db, "certificates", normalizedId), fullCert, { merge: true });
+    }
+  } catch (err) {
+    console.error("Failed to save certificate to Firestore:", err);
+  }
 
   return fullCert;
 }
 
-export function revokeCert(id: string, reason: string): CertRecord | null {
+export async function revokeCert(id: string, reason: string): Promise<CertRecord | null> {
   const normalizedId = id.trim().toUpperCase();
-  const existing = getCert(normalizedId);
+  const existing = await getCert(normalizedId);
   if (!existing) return null;
 
   const updated: CertRecord = {
     ...existing,
     status: "REVOKED",
-    revocationReason: reason || "Revoked by Administrator"
+    revocationReason: reason || "Revoked by Administrator",
+    updatedAt: new Date().toISOString()
   };
 
-  saveCert(updated);
+  await saveCert(updated);
   return updated;
 }
 
-export function getAllCerts(): CertRecord[] {
-  const disk = loadFromDisk();
-  return Object.values(disk);
+export async function getAllCerts(): Promise<CertRecord[]> {
+  try {
+    if (db) {
+      const snap = await getDocs(collection(db, "certificates"));
+      const docsList = snap.docs.map(d => d.data() as CertRecord);
+      if (docsList.length > 0) {
+        return docsList;
+      }
+    }
+  } catch (err) {
+    console.warn("Firestore getAllCerts notice:", err);
+  }
+  return Object.values(DEFAULT_CERTS);
 }
-
-export const certsStore = globalStore;

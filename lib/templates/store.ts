@@ -1,84 +1,52 @@
-import fs from "fs";
-import path from "path";
-import { INITIAL_TEMPLATES, TemplateRecord } from "./default-templates";
 import { db } from "../firebase/client";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { INITIAL_TEMPLATES, TemplateRecord } from "./default-templates";
 
-const DATA_FILE = path.join(process.cwd(), "templates_data.json");
-
-async function syncTemplateToFirestore(tpl: TemplateRecord) {
+export async function getTemplatesStore(): Promise<TemplateRecord[]> {
   try {
-    if (db && tpl.templateId) {
-      await setDoc(doc(db, "templates", tpl.templateId), {
-        ...tpl,
-        updatedAt: tpl.updatedAt || new Date().toISOString()
-      }, { merge: true });
-    }
-  } catch (err) {
-    console.warn("Firestore sync notice (template):", err);
-  }
-}
-
-async function syncTemplateDeleteToFirestore(id: string) {
-  try {
-    if (db && id) {
-      await deleteDoc(doc(db, "templates", id));
-    }
-  } catch (err) {
-    console.warn("Firestore delete notice (template):", err);
-  }
-}
-
-function loadTemplatesFromDisk(): TemplateRecord[] {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const content = fs.readFileSync(DATA_FILE, "utf-8");
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+    if (db) {
+      const snap = await getDocs(collection(db, "templates"));
+      const docsList = snap.docs.map(d => d.data() as TemplateRecord);
+      if (docsList.length > 0) {
+        return docsList;
       }
     }
   } catch (err) {
-    console.error("Failed to load templates from disk:", err);
+    console.warn("Firestore fetch notice (templates):", err);
   }
   return [...INITIAL_TEMPLATES];
 }
 
-function saveTemplatesToDisk(templates: TemplateRecord[]) {
+export async function getTemplateByIdStore(id: string): Promise<TemplateRecord | undefined> {
+  if (!id) return undefined;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(templates, null, 2), "utf-8");
+    if (db) {
+      const docRef = doc(db, "templates", id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return snap.data() as TemplateRecord;
+      }
+    }
   } catch (err) {
-    console.error("Failed to save templates to disk:", err);
+    console.warn("Firestore fetch notice (template by id):", err);
   }
+  const defaultList = [...INITIAL_TEMPLATES];
+  return defaultList.find(t => t.templateId === id);
 }
 
-let memoryTemplates: TemplateRecord[] = loadTemplatesFromDisk();
-
-export function getTemplatesStore(): TemplateRecord[] {
-  memoryTemplates = loadTemplatesFromDisk();
-  return memoryTemplates;
-}
-
-export function getTemplateByIdStore(id: string): TemplateRecord | undefined {
-  const all = getTemplatesStore();
-  return all.find(t => t.templateId === id);
-}
-
-export function saveTemplateStore(tpl: {
+export async function saveTemplateStore(tpl: {
   templateId?: string;
   name: string;
   pageSize?: "A4" | "LETTER";
   orientation?: "LANDSCAPE" | "PORTRAIT";
   designJson: any;
   ownerId?: string;
-}): TemplateRecord {
-  const currentTemplates = getTemplatesStore();
-  const existingIdx = tpl.templateId ? currentTemplates.findIndex(t => t.templateId === tpl.templateId) : -1;
+}): Promise<TemplateRecord> {
+  const newId = tpl.templateId || `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const existing = await getTemplateByIdStore(newId);
 
   let updatedRecord: TemplateRecord;
-
-  if (existingIdx >= 0) {
-    const existing = currentTemplates[existingIdx];
+  if (existing) {
     updatedRecord = {
       ...existing,
       name: tpl.name || existing.name,
@@ -88,9 +56,7 @@ export function saveTemplateStore(tpl: {
       designJson: tpl.designJson || existing.designJson,
       updatedAt: new Date().toISOString()
     };
-    currentTemplates[existingIdx] = updatedRecord;
   } else {
-    const newId = tpl.templateId || `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     updatedRecord = {
       templateId: newId,
       name: tpl.name || "Certificate Template",
@@ -103,24 +69,27 @@ export function saveTemplateStore(tpl: {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    currentTemplates.push(updatedRecord);
   }
 
-  saveTemplatesToDisk(currentTemplates);
-  memoryTemplates = currentTemplates;
-  syncTemplateToFirestore(updatedRecord);
+  try {
+    if (db) {
+      await setDoc(doc(db, "templates", newId), updatedRecord, { merge: true });
+    }
+  } catch (err) {
+    console.error("Failed to save template to Firestore:", err);
+  }
+
   return updatedRecord;
 }
 
-export function deleteTemplateStore(id: string): boolean {
-  const currentTemplates = getTemplatesStore();
-  const initLength = currentTemplates.length;
-  const filtered = currentTemplates.filter(t => t.templateId !== id);
-  if (filtered.length < initLength) {
-    saveTemplatesToDisk(filtered);
-    memoryTemplates = filtered;
-    syncTemplateDeleteToFirestore(id);
-    return true;
+export async function deleteTemplateStore(id: string): Promise<boolean> {
+  try {
+    if (db && id) {
+      await deleteDoc(doc(db, "templates", id));
+      return true;
+    }
+  } catch (err) {
+    console.error("Failed to delete template from Firestore:", err);
   }
   return false;
 }

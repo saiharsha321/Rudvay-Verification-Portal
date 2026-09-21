@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       verificationUrl: `http://localhost:3000/verify/${certId}`
     };
 
-    saveCert(newCert);
+    await saveCert(newCert);
 
     // If sendEmail is enabled, generate PDF and dispatch email
     let emailStatus = { success: false, message: "Email dispatch not requested" };

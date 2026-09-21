@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ detail: "Certificate ID is required" }, { status: 400 });
     }
 
-    const cert = getCert(certificateId);
+    const cert = await getCert(certificateId);
     if (!cert) {
       return NextResponse.json({ detail: "Certificate not found" }, { status: 404 });
     }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllCerts } from "@/lib/certificates/store";
 
 export async function GET() {
-  const all = getAllCerts();
+  const all = await getAllCerts();
   const valid = all.filter(c => c.status === "VALID").length;
   const revoked = all.filter(c => c.status === "REVOKED").length;
 

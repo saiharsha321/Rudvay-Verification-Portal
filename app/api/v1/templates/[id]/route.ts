@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const tpl = getTemplateByIdStore(id);
+    const tpl = await getTemplateByIdStore(id);
     if (!tpl) {
       return NextResponse.json({ detail: "Template not found" }, { status: 404 });
     }
@@ -24,7 +24,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await req.json();
-    const updated = saveTemplateStore({
+    const updated = await saveTemplateStore({
       templateId: id,
       name: body.name,
       pageSize: body.pageSize,
@@ -43,7 +43,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
-    const ok = deleteTemplateStore(id);
+    const ok = await deleteTemplateStore(id);
     if (!ok) {
       return NextResponse.json({ detail: "Template not found" }, { status: 404 });
     }

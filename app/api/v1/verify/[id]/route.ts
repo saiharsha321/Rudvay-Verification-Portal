@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
-  const cert = getCert(id);
+  const cert = await getCert(id);
 
   if (!cert) {
     return NextResponse.json({ detail: `Certificate with ID '${id}' was not found in our registry.` }, { status: 404 });

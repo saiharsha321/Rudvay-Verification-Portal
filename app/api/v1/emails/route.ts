@@ -4,8 +4,8 @@ import { getSmtpConfig } from "@/lib/email/service";
 
 export async function GET(req: NextRequest) {
   try {
-    const logs = getEmailLogs();
-    const smtpConfig = getSmtpConfig();
+    const logs = await getEmailLogs();
+    const smtpConfig = await getSmtpConfig();
 
     return NextResponse.json({
       activeSender: smtpConfig.fromEmail || smtpConfig.username || "info.rudvay@gmail.com",

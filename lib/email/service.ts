@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import fs from "fs";
-import path from "path";
+import { db } from "../firebase/client";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { recordEmailLog } from "./logs";
 
 export interface SmtpConfig {
@@ -13,36 +13,39 @@ export interface SmtpConfig {
   useTls: boolean;
 }
 
-const CONFIG_FILE = path.join(process.cwd(), "smtp_config.json");
 const DEFAULT_CONFIG: SmtpConfig = {
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT) || 587,
-  username: process.env.SMTP_USER || process.env.SMTP_USERNAME || "",
-  password: process.env.SMTP_PASSWORD || "",
+  username: process.env.SMTP_USER || process.env.SMTP_USERNAME || "info.rudvay@gmail.com",
+  password: process.env.SMTP_PASSWORD || "wyfiasiteiitlvhm",
   fromName: process.env.SMTP_FROM_NAME || "Rudvay Tech Certifications",
   fromEmail: process.env.SMTP_FROM_EMAIL || "info.rudvay@gmail.com",
   useTls: true
 };
 
-export function getSmtpConfig(): SmtpConfig {
+export async function getSmtpConfig(): Promise<SmtpConfig> {
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, "utf-8");
-      return { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+    if (db) {
+      const snap = await getDoc(doc(db, "systemSettings", "smtp"));
+      if (snap.exists()) {
+        return { ...DEFAULT_CONFIG, ...snap.data() };
+      }
     }
   } catch (e) {
-    // Ignore error
+    console.warn("Firestore getSmtpConfig notice:", e);
   }
   return DEFAULT_CONFIG;
 }
 
-export function saveSmtpConfig(config: Partial<SmtpConfig>) {
-  const current = getSmtpConfig();
+export async function saveSmtpConfig(config: Partial<SmtpConfig>): Promise<SmtpConfig> {
+  const current = await getSmtpConfig();
   const updated = { ...current, ...config };
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), "utf-8");
+    if (db) {
+      await setDoc(doc(db, "systemSettings", "smtp"), updated, { merge: true });
+    }
   } catch (e) {
-    console.error("Failed to save SMTP config", e);
+    console.error("Failed to save SMTP config to Firestore:", e);
   }
   return updated;
 }
@@ -55,7 +58,7 @@ export async function sendCertificateEmail(params: {
   pdfBuffer: Uint8Array;
   verificationUrl?: string;
 }): Promise<{ success: boolean; message: string; messageId?: string }> {
-  const config = getSmtpConfig();
+  const config = await getSmtpConfig();
   const verifyUrl = params.verificationUrl || `http://localhost:3000/verify/${params.certificateId}`;
 
   // If credentials are configured, send real email via nodemailer
@@ -112,7 +115,7 @@ export async function sendCertificateEmail(params: {
         ]
       });
 
-      recordEmailLog({
+      await recordEmailLog({
         certificateId: params.certificateId,
         recipientEmail: params.toEmail,
         recipientName: params.recipientName,
@@ -125,7 +128,7 @@ export async function sendCertificateEmail(params: {
       return { success: true, message: "Email sent successfully", messageId: info.messageId };
     } catch (err: any) {
       console.warn("SMTP send encountered an error:", err.message);
-      recordEmailLog({
+      await recordEmailLog({
         certificateId: params.certificateId,
         recipientEmail: params.toEmail,
         recipientName: params.recipientName,
@@ -140,7 +143,7 @@ export async function sendCertificateEmail(params: {
 
   // If no SMTP password configured yet, log dispatch notification
   console.log(`[SMTP Notice] Certificate ${params.certificateId} email prepared for ${params.toEmail} (Configure SMTP in Admin > SMTP Config for direct outbound delivery)`);
-  recordEmailLog({
+  await recordEmailLog({
     certificateId: params.certificateId,
     recipientEmail: params.toEmail,
     recipientName: params.recipientName,

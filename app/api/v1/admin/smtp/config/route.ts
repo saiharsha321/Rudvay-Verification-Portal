@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveSmtpConfig, getSmtpConfig } from "@/lib/email/service";
 
 export async function GET() {
-  const config = getSmtpConfig();
+  const config = await getSmtpConfig();
   // Don't expose plain text password
   return NextResponse.json({
     ...config,
@@ -13,7 +13,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const updated = saveSmtpConfig(body);
+    const updated = await saveSmtpConfig(body);
     return NextResponse.json({
       success: true,
       message: "SMTP configuration updated successfully",

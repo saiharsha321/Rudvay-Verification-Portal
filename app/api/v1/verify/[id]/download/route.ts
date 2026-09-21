@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
-  const cert = getCert(id);
+  const cert = await getCert(id);
 
   if (!cert) {
     return NextResponse.json({ detail: "Certificate not found" }, { status: 404 });

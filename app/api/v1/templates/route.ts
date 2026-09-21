@@ -3,7 +3,7 @@ import { getTemplatesStore, saveTemplateStore } from "@/lib/templates/store";
 
 export async function GET(req: NextRequest) {
   try {
-    const templates = getTemplatesStore();
+    const templates = await getTemplatesStore();
     return NextResponse.json(templates);
   } catch (err: any) {
     return NextResponse.json({ detail: err.message || "Failed to fetch templates" }, { status: 500 });
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!body.name) {
       return NextResponse.json({ detail: "Template name is required" }, { status: 400 });
     }
-    const created = saveTemplateStore({
+    const created = await saveTemplateStore({
       name: body.name,
       pageSize: body.pageSize || "A4",
       orientation: body.orientation || "LANDSCAPE",

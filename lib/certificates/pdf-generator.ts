@@ -44,7 +44,7 @@ function interpolate(text: string, context: Record<string, string>): string {
 export async function generateCertificatePdf(data: CertificatePdfData): Promise<Uint8Array> {
   let template: TemplateRecord | undefined;
   if (data.templateId) {
-    template = getTemplateByIdStore(data.templateId);
+    template = await getTemplateByIdStore(data.templateId);
   }
   if (!template) {
     template = getTemplateById(data.templateId);

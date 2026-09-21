@@ -10,7 +10,7 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
     const reason = body.reason || "Disciplinary requirement violation";
 
-    const updated = revokeCert(id, reason);
+    const updated = await revokeCert(id, reason);
     if (!updated) {
       return NextResponse.json({ detail: `Certificate '${id}' not found` }, { status: 404 });
     }

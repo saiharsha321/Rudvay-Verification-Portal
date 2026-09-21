@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
 import { db } from "../firebase/client";
-import { doc, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc } from "firebase/firestore";
 
 export interface OutboundEmailLog {
   id: string;
@@ -15,8 +13,6 @@ export interface OutboundEmailLog {
   messageId?: string;
   errorMessage?: string;
 }
-
-const LOGS_FILE = path.join(process.cwd(), "email_logs.json");
 
 const INITIAL_DEMO_LOGS: OutboundEmailLog[] = [
   {
@@ -32,50 +28,36 @@ const INITIAL_DEMO_LOGS: OutboundEmailLog[] = [
   }
 ];
 
-function loadEmailLogsFromDisk(): OutboundEmailLog[] {
-  try {
-    if (fs.existsSync(LOGS_FILE)) {
-      const data = fs.readFileSync(LOGS_FILE, "utf-8");
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {}
-  return INITIAL_DEMO_LOGS;
-}
-
-function saveEmailLogsToDisk(logs: OutboundEmailLog[]) {
-  try {
-    fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2), "utf-8");
-  } catch (e) {}
-}
-
-async function syncEmailLogToFirestore(log: OutboundEmailLog) {
-  try {
-    if (db && log.id) {
-      await setDoc(doc(db, "emailLogs", log.id), {
-        ...log
-      }, { merge: true });
-    }
-  } catch (e) {
-    console.warn("Firestore email log sync notice:", e);
-  }
-}
-
-export function recordEmailLog(logData: Omit<OutboundEmailLog, "id" | "timestamp">): OutboundEmailLog {
-  const currentLogs = loadEmailLogsFromDisk();
+export async function recordEmailLog(logData: Omit<OutboundEmailLog, "id" | "timestamp">): Promise<OutboundEmailLog> {
+  const newId = `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const newLog: OutboundEmailLog = {
     ...logData,
-    id: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: newId,
     timestamp: new Date().toISOString()
   };
 
-  currentLogs.unshift(newLog);
-  saveEmailLogsToDisk(currentLogs);
-  syncEmailLogToFirestore(newLog);
+  try {
+    if (db) {
+      await setDoc(doc(db, "emailLogs", newId), newLog, { merge: true });
+    }
+  } catch (e) {
+    console.warn("Firestore email log notice:", e);
+  }
 
   return newLog;
 }
 
-export function getEmailLogs(): OutboundEmailLog[] {
-  return loadEmailLogsFromDisk();
+export async function getEmailLogs(): Promise<OutboundEmailLog[]> {
+  try {
+    if (db) {
+      const snap = await getDocs(collection(db, "emailLogs"));
+      const docsList = snap.docs.map(d => d.data() as OutboundEmailLog);
+      if (docsList.length > 0) {
+        return docsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      }
+    }
+  } catch (e) {
+    console.warn("Firestore getEmailLogs notice:", e);
+  }
+  return INITIAL_DEMO_LOGS;
 }

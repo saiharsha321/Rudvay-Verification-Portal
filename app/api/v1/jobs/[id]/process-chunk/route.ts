@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/firebase/client";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { saveCert, CertRecord } from "@/lib/certificates/store";
 import { generateCertificatePdf } from "@/lib/certificates/pdf-generator";
 import { sendCertificateEmail } from "@/lib/email/service";
@@ -9,8 +11,14 @@ export async function POST(
 ) {
   try {
     const { id } = params;
-    const globalJobs = (globalThis as any).__rudvay_bulk_jobs || {};
-    const job = globalJobs[id];
+    let job: any = null;
+
+    if (db) {
+      const snap = await getDoc(doc(db, "generationJobs", id));
+      if (snap.exists()) {
+        job = snap.data();
+      }
+    }
 
     if (!job) {
       return NextResponse.json({ detail: "Job not found" }, { status: 404 });
@@ -19,7 +27,8 @@ export async function POST(
     const searchParams = req.nextUrl.searchParams;
     const chunkSize = parseInt(searchParams.get("chunk_size") || "25", 10);
 
-    const pendingItems = job.items.filter((it: any) => it.status === "PENDING");
+    const items = job.items || [];
+    const pendingItems = items.filter((it: any) => it.status === "PENDING");
     const toProcess = pendingItems.slice(0, chunkSize);
 
     for (const item of toProcess) {
@@ -37,7 +46,7 @@ export async function POST(
           issuerName: "Rudvay Tech",
           verificationUrl: `http://localhost:3000/verify/${item.certificateId}`
         };
-        saveCert(newCert);
+        await saveCert(newCert);
 
         // Generate PDF and send email automatically if recipientEmail is provided
         if (item.recipientEmail) {
@@ -82,6 +91,10 @@ export async function POST(
       job.status = "COMPLETED";
     } else {
       job.status = "PROCESSING";
+    }
+
+    if (db) {
+      await setDoc(doc(db, "generationJobs", id), job, { merge: true });
     }
 
     return NextResponse.json({
