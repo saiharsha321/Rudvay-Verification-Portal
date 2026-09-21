@@ -40,8 +40,12 @@ export async function recordEmailLog(logData: Omit<OutboundEmailLog, "id" | "tim
     if (db) {
       await setDoc(doc(db, "emailLogs", newId), newLog, { merge: true });
     }
-  } catch (e) {
-    console.warn("Firestore email log notice:", e);
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      console.warn("[Firestore Notice] Email log save skipped due to Firestore Security Rules. Update rules in Firebase Console.");
+    } else {
+      console.warn("Firestore email log notice:", e?.message || e);
+    }
   }
 
   return newLog;
@@ -56,8 +60,12 @@ export async function getEmailLogs(): Promise<OutboundEmailLog[]> {
         return docsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       }
     }
-  } catch (e) {
-    console.warn("Firestore getEmailLogs notice:", e);
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      console.warn("[Firestore Notice] Firestore Security Rules currently restrict reading emailLogs.");
+    } else {
+      console.warn("Firestore getEmailLogs notice:", e?.message || e);
+    }
   }
   return INITIAL_DEMO_LOGS;
 }

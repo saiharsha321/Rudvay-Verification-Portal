@@ -61,16 +61,19 @@ export async function sendCertificateEmail(params: {
   const config = await getSmtpConfig();
   const verifyUrl = params.verificationUrl || `http://localhost:3000/verify/${params.certificateId}`;
 
+  const cleanUser = config.username ? config.username.trim() : "";
+  const cleanPass = config.password ? config.password.replace(/\s+/g, "") : "";
+
   // If credentials are configured, send real email via nodemailer
-  if (config.username && config.password) {
+  if (cleanUser && cleanPass) {
     try {
       const transporter = nodemailer.createTransport({
-        host: config.host,
-        port: config.port,
+        host: config.host || "smtp.gmail.com",
+        port: config.port || 587,
         secure: config.port === 465,
         auth: {
-          user: config.username,
-          pass: config.password
+          user: cleanUser,
+          pass: cleanPass
         },
         tls: {
           rejectUnauthorized: false
@@ -78,7 +81,7 @@ export async function sendCertificateEmail(params: {
       });
 
       const info = await transporter.sendMail({
-        from: `"${config.fromName}" <${config.fromEmail || config.username}>`,
+        from: `"${config.fromName}" <${config.fromEmail || cleanUser}>`,
         to: params.toEmail,
         subject: `Your Certificate of Achievement: ${params.courseName} (${params.certificateId})`,
         html: `
@@ -121,7 +124,7 @@ export async function sendCertificateEmail(params: {
         recipientName: params.recipientName,
         courseName: params.courseName,
         status: "SENT",
-        senderEmail: config.fromEmail || config.username,
+        senderEmail: config.fromEmail || cleanUser,
         messageId: info.messageId
       });
 
@@ -134,7 +137,7 @@ export async function sendCertificateEmail(params: {
         recipientName: params.recipientName,
         courseName: params.courseName,
         status: "FAILED",
-        senderEmail: config.fromEmail || config.username,
+        senderEmail: config.fromEmail || cleanUser,
         errorMessage: err.message
       });
       return { success: false, message: `SMTP error: ${err.message}` };
@@ -142,7 +145,7 @@ export async function sendCertificateEmail(params: {
   }
 
   // If no SMTP password configured yet, log dispatch notification
-  console.log(`[SMTP Notice] Certificate ${params.certificateId} email prepared for ${params.toEmail} (Configure SMTP in Admin > SMTP Config for direct outbound delivery)`);
+  console.log(`[SMTP Notice] Certificate ${params.certificateId} email prepared for ${params.toEmail}`);
   await recordEmailLog({
     certificateId: params.certificateId,
     recipientEmail: params.toEmail,
@@ -159,13 +162,16 @@ export async function sendCertificateEmail(params: {
 }
 
 export async function testSmtp(config: SmtpConfig, testRecipient: string) {
+  const cleanUser = config.username ? config.username.trim() : "";
+  const cleanPass = config.password ? config.password.replace(/\s+/g, "") : "";
+
   const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
+    host: config.host || "smtp.gmail.com",
+    port: config.port || 587,
     secure: config.port === 465,
     auth: {
-      user: config.username,
-      pass: config.password
+      user: cleanUser,
+      pass: cleanPass
     },
     tls: {
       rejectUnauthorized: false
@@ -176,7 +182,7 @@ export async function testSmtp(config: SmtpConfig, testRecipient: string) {
 
   if (testRecipient) {
     await transporter.sendMail({
-      from: `"${config.fromName}" <${config.fromEmail || config.username}>`,
+      from: `"${config.fromName}" <${config.fromEmail || cleanUser}>`,
       to: testRecipient,
       subject: "Rudvay Tech SMTP Handshake Verification",
       text: "SMTP connection handshake and authentication were successful!"
