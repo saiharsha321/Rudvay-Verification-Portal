@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import { formatExcelDate } from "@/lib/utils/date";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,22 +14,32 @@ export async function POST(req: NextRequest) {
 
     const mapping = JSON.parse(mappingJson);
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
     const validRows: any[] = [];
     const errors: { rowNumber: number; field: string; message: string; value: any }[] = [];
     const seenEmails = new Set<string>();
 
-    rows.forEach((row, idx) => {
+    rawRows.forEach((row, idx) => {
       const rowNum = idx + 2; // spreadsheet 1-based line including header
-      const name = String(row[mapping.name] || "").trim();
-      const email = String(row[mapping.email] || "").trim();
-      const course = String(row[mapping.course] || "").trim();
-      const date = String(row[mapping.date] || "").trim() || new Date().toISOString().split("T")[0];
-      const duration = String(row[mapping.duration] || "").trim() || "20 Hours";
+      const nameHeader = mapping.name || "name";
+      const emailHeader = mapping.email || "email";
+      const courseHeader = mapping.course || "course";
+      const dateHeader = mapping.date || "date";
+      const durationHeader = mapping.duration || "duration";
+
+      const name = String(row[nameHeader] || row.name || "").trim();
+      const email = String(row[emailHeader] || row.email || "").trim();
+      const course = String(row[courseHeader] || row.course || "").trim();
+      
+      const rawDateVal = row[dateHeader] !== undefined ? row[dateHeader] : row.date;
+      const dateStr = formatExcelDate(rawDateVal);
+      const date = dateStr || new Date().toISOString().split("T")[0];
+      
+      const duration = String(row[durationHeader] || row.duration || "").trim() || "20 Hours";
 
       if (!name) {
         errors.push({ rowNumber: rowNum, field: "name", message: "Missing recipient name", value: name });
@@ -52,8 +63,18 @@ export async function POST(req: NextRequest) {
 
       seenEmails.add(email.toLowerCase());
 
+      // Pre-format any dates in raw row
+      const formattedRawRow: Record<string, any> = {};
+      Object.entries(row).forEach(([k, v]) => {
+        if (k.toLowerCase().includes("date") || (typeof v === "number" && v > 1000 && v < 100000) || v instanceof Date) {
+          formattedRawRow[k] = formatExcelDate(v);
+        } else {
+          formattedRawRow[k] = v;
+        }
+      });
+
       const mappedRow: Record<string, any> = {
-        ...row,
+        ...formattedRawRow,
         name,
         email,
         course,
@@ -61,9 +82,16 @@ export async function POST(req: NextRequest) {
         duration
       };
 
+      // Map explicit user choices from step 2
       Object.entries(mapping).forEach(([placeholderKey, headerName]) => {
         if (headerName && row[headerName as string] !== undefined) {
-          mappedRow[placeholderKey] = String(row[headerName as string]).trim();
+          let val = row[headerName as string];
+          if (placeholderKey.toLowerCase().includes("date") || (typeof val === "number" && val > 1000 && val < 100000) || val instanceof Date) {
+            val = formatExcelDate(val);
+          } else {
+            val = String(val).trim();
+          }
+          mappedRow[placeholderKey] = val;
         }
       });
 
@@ -71,10 +99,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      totalRows: rows.length,
+      totalRows: rawRows.length,
       validRowsCount: validRows.length,
       invalidRowsCount: errors.length,
-      headers: Object.keys(rows[0] || {}),
+      headers: Object.keys(rawRows[0] || {}),
       validRows,
       errors
     });

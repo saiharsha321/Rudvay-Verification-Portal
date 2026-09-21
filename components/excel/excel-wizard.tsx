@@ -90,6 +90,11 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
         });
       }
 
+      // Also ensure every Excel header is present as a placeholder mapping option
+      if (parseRes.headers && parseRes.headers.length > 0) {
+        parseRes.headers.forEach(h => foundSet.add(h.trim()));
+      }
+
       const allPlaceholders = Array.from(foundSet);
       setPlaceholders(allPlaceholders);
       setHeaders(parseRes.headers);
@@ -101,6 +106,12 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
           const matchedHeader = parseRes.headers.find(h => h.toLowerCase().replace(/[\s_\-]+/g, "") === normPh);
           if (matchedHeader) {
             initialMap[ph] = matchedHeader;
+          } else {
+            // Direct header match if header has exact same name
+            const exactHeader = parseRes.headers.find(h => h.trim() === ph.trim());
+            if (exactHeader) {
+              initialMap[ph] = exactHeader;
+            }
           }
         }
       });

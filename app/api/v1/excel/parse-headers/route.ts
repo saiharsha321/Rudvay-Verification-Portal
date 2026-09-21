@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import { formatExcelDate } from "@/lib/utils/date";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,16 +11,29 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-    if (!rows || rows.length === 0) {
+    if (!rawRows || rawRows.length === 0) {
       return NextResponse.json({ detail: "Uploaded spreadsheet contains no data" }, { status: 400 });
     }
 
-    const headers = Object.keys(rows[0]);
+    // Format any date values in rows
+    const rows = rawRows.map(row => {
+      const formatted: Record<string, any> = {};
+      Object.entries(row).forEach(([k, v]) => {
+        if (k.toLowerCase().includes("date") || (typeof v === "number" && v > 1000 && v < 100000) || v instanceof Date) {
+          formatted[k] = formatExcelDate(v);
+        } else {
+          formatted[k] = v;
+        }
+      });
+      return formatted;
+    });
+
+    const headers = Object.keys(rows[0] || {});
     const suggestedMapping: Record<string, string> = {};
 
     headers.forEach(h => {

@@ -2,6 +2,7 @@ import { PDFDocument, rgb, StandardFonts, RGB } from "pdf-lib";
 import QRCode from "qrcode";
 import { getTemplateById, TemplateRecord } from "../templates/default-templates";
 import { getTemplateByIdStore } from "../templates/store";
+import { formatExcelDate } from "../utils/date";
 
 export interface CertificatePdfData {
   certificateId: string;
@@ -36,13 +37,23 @@ function hexToRgb(hexStr?: string, defaultColor: RGB = rgb(0.1, 0.1, 0.1)): RGB 
 }
 
 function getValueFromContext(key: string, context: Record<string, any>): string | undefined {
-  if (context[key] !== undefined && context[key] !== null) return String(context[key]);
+  const formatValue = (k: string, v: any): string => {
+    if (k.toLowerCase().includes("date") || (typeof v === "number" && v > 1000 && v < 100000) || (typeof v === "string" && /^\d+(\.\d+)?$/.test(v.trim()) && Number(v) > 1000 && Number(v) < 100000) || v instanceof Date) {
+      return formatExcelDate(v);
+    }
+    return String(v);
+  };
+
+  if (context[key] !== undefined && context[key] !== null) {
+    return formatValue(key, context[key]);
+  }
+
   const normKey = key.trim().toLowerCase().replace(/[\s_\-]+/g, "");
   for (const [cKey, val] of Object.entries(context)) {
     if (val !== undefined && val !== null) {
       const normCKey = cKey.trim().toLowerCase().replace(/[\s_\-]+/g, "");
       if (normKey === normCKey) {
-        return String(val);
+        return formatValue(key, val);
       }
     }
   }
@@ -195,7 +206,7 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
     course: data.courseName,
     program: data.courseName,
     event: data.eventName || data.courseName,
-    date: data.issueDate,
+    date: formatExcelDate(data.issueDate),
     duration: data.duration || "20 Hours",
     certificate_id: data.certificateId,
     verification_url: verificationUrl,
