@@ -25,21 +25,43 @@ export async function POST(req: NextRequest) {
 
     rawRows.forEach((row, idx) => {
       const rowNum = idx + 2; // spreadsheet 1-based line including header
-      const nameHeader = mapping.name || "name";
-      const emailHeader = mapping.email || "email";
-      const courseHeader = mapping.course || "course";
-      const dateHeader = mapping.date || "date";
-      const durationHeader = mapping.duration || "duration";
 
-      const name = String(row[nameHeader] || row.name || "").trim();
-      const email = String(row[emailHeader] || row.email || "").trim();
-      const course = String(row[courseHeader] || row.course || "").trim();
-      
-      const rawDateVal = row[dateHeader] !== undefined ? row[dateHeader] : row.date;
+      const getRowValue = (targetHeader?: string): any => {
+        if (!targetHeader) return undefined;
+        if (row[targetHeader] !== undefined && row[targetHeader] !== null && String(row[targetHeader]).trim() !== "") {
+          return row[targetHeader];
+        }
+        const normTarget = targetHeader.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        for (const [k, v] of Object.entries(row)) {
+          if (v !== undefined && v !== null && String(v).trim() !== "") {
+            const normK = k.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (normK === normTarget) {
+              return v;
+            }
+          }
+        }
+        return undefined;
+      };
+
+      // Find standard field headers from mapping or fuzzy match
+      const nameHeader = mapping.name || Object.keys(mapping).find(k => k.toLowerCase() === "name");
+      const emailHeader = mapping.email || Object.keys(mapping).find(k => k.toLowerCase() === "email");
+      const courseHeader = mapping.course || Object.keys(mapping).find(k => k.toLowerCase() === "course");
+      const dateHeader = mapping.date || Object.keys(mapping).find(k => k.toLowerCase() === "date");
+      const durationHeader = mapping.duration || Object.keys(mapping).find(k => k.toLowerCase() === "duration");
+
+      const nameVal = getRowValue(nameHeader) || getRowValue("name") || getRowValue("Name");
+      const emailVal = getRowValue(emailHeader) || getRowValue("email") || getRowValue("Email");
+      const courseVal = getRowValue(courseHeader) || getRowValue("course") || getRowValue("Course");
+      const rawDateVal = getRowValue(dateHeader) || getRowValue("date") || getRowValue("Date");
+      const durationVal = getRowValue(durationHeader) || getRowValue("duration") || getRowValue("Duration");
+
+      const name = String(nameVal || "").trim();
+      const email = String(emailVal || "").trim();
+      const course = String(courseVal || "").trim();
       const dateStr = formatExcelDate(rawDateVal);
       const date = dateStr || new Date().toISOString().split("T")[0];
-      
-      const duration = String(row[durationHeader] || row.duration || "").trim() || "20 Hours";
+      const duration = String(durationVal || "20 Hours").trim();
 
       if (!name) {
         errors.push({ rowNumber: rowNum, field: "name", message: "Missing recipient name", value: name });
@@ -63,18 +85,8 @@ export async function POST(req: NextRequest) {
 
       seenEmails.add(email.toLowerCase());
 
-      // Pre-format any dates in raw row
-      const formattedRawRow: Record<string, any> = {};
-      Object.entries(row).forEach(([k, v]) => {
-        if (k.toLowerCase().includes("date") || (typeof v === "number" && v > 1000 && v < 100000) || v instanceof Date) {
-          formattedRawRow[k] = formatExcelDate(v);
-        } else {
-          formattedRawRow[k] = v;
-        }
-      });
-
+      // Pre-format raw row items and store normalized keys
       const mappedRow: Record<string, any> = {
-        ...formattedRawRow,
         name,
         email,
         course,
@@ -82,16 +94,34 @@ export async function POST(req: NextRequest) {
         duration
       };
 
+      Object.entries(row).forEach(([k, v]) => {
+        let val = v;
+        if (k.toLowerCase().includes("date") || (typeof v === "number" && v > 1000 && v < 100000) || v instanceof Date) {
+          val = formatExcelDate(v);
+        } else if (v !== undefined && v !== null) {
+          val = String(v).trim();
+        }
+        mappedRow[k] = val;
+        mappedRow[k.trim().toLowerCase()] = val;
+        mappedRow[k.trim().toLowerCase().replace(/[^a-z0-9]/g, "")] = val;
+        mappedRow[k.trim().replace(/\s+/g, "_").toLowerCase()] = val;
+      });
+
       // Map explicit user choices from step 2
       Object.entries(mapping).forEach(([placeholderKey, headerName]) => {
-        if (headerName && row[headerName as string] !== undefined) {
-          let val = row[headerName as string];
-          if (placeholderKey.toLowerCase().includes("date") || (typeof val === "number" && val > 1000 && val < 100000) || val instanceof Date) {
-            val = formatExcelDate(val);
-          } else {
-            val = String(val).trim();
+        if (headerName) {
+          let val = getRowValue(headerName as string);
+          if (val !== undefined && val !== null) {
+            if (placeholderKey.toLowerCase().includes("date") || (typeof val === "number" && val > 1000 && val < 100000) || val instanceof Date) {
+              val = formatExcelDate(val);
+            } else {
+              val = String(val).trim();
+            }
+            mappedRow[placeholderKey] = val;
+            mappedRow[placeholderKey.trim().toLowerCase()] = val;
+            mappedRow[placeholderKey.trim().toLowerCase().replace(/[^a-z0-9]/g, "")] = val;
+            mappedRow[placeholderKey.trim().replace(/\s+/g, "_").toLowerCase()] = val;
           }
-          mappedRow[placeholderKey] = val;
         }
       });
 

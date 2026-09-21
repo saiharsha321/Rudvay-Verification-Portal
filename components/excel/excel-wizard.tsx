@@ -78,41 +78,81 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
         apiClient<any>(`/templates/${templateId}`).catch(() => null)
       ]);
 
-      const foundSet = new Set<string>(["name", "email", "course", "date", "duration"]);
+      const placeholderMap = new Map<string, string>();
+
+      const addPlaceholder = (raw: string) => {
+        if (!raw) return;
+        const clean = raw.trim();
+        const norm = clean.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!norm) return;
+        if (!placeholderMap.has(norm)) {
+          placeholderMap.set(norm, clean);
+        }
+      };
+
+      // 1. Standard defaults
+      ["name", "email", "course", "date", "duration"].forEach(addPlaceholder);
+
+      // 2. Extract from template elements
       if (tplRes?.designJson?.elements) {
         tplRes.designJson.elements.forEach((elem: any) => {
           if (elem.type === "TEXT" && elem.content) {
             const matches = elem.content.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g);
             for (const m of matches) {
-              if (m[1]) foundSet.add(m[1].trim());
+              if (m[1]) addPlaceholder(m[1]);
             }
           }
         });
       }
 
-      // Also ensure every Excel header is present as a placeholder mapping option
+      // 3. Add all Excel headers
       if (parseRes.headers && parseRes.headers.length > 0) {
-        parseRes.headers.forEach(h => foundSet.add(h.trim()));
+        parseRes.headers.forEach(h => addPlaceholder(h));
       }
 
-      const allPlaceholders = Array.from(foundSet);
+      const allPlaceholders = Array.from(placeholderMap.values());
       setPlaceholders(allPlaceholders);
       setHeaders(parseRes.headers);
 
-      const initialMap: Record<string, string> = { ...parseRes.suggestedMapping };
+      const initialMap: Record<string, string> = {};
       allPlaceholders.forEach(ph => {
-        if (!initialMap[ph]) {
-          const normPh = ph.toLowerCase().replace(/[\s_\-]+/g, "");
-          const matchedHeader = parseRes.headers.find(h => h.toLowerCase().replace(/[\s_\-]+/g, "") === normPh);
-          if (matchedHeader) {
-            initialMap[ph] = matchedHeader;
-          } else {
-            // Direct header match if header has exact same name
-            const exactHeader = parseRes.headers.find(h => h.trim() === ph.trim());
-            if (exactHeader) {
-              initialMap[ph] = exactHeader;
-            }
+        const normPh = ph.toLowerCase().replace(/[^a-z0-9]/g, "");
+        
+        // Check suggested mapping first if present
+        if (parseRes.suggestedMapping && parseRes.suggestedMapping[normPh]) {
+          initialMap[ph] = parseRes.suggestedMapping[normPh];
+          return;
+        }
+
+        // Exact match
+        let matched = parseRes.headers.find(h => h.trim() === ph.trim());
+
+        // Normalized match
+        if (!matched) {
+          matched = parseRes.headers.find(h => h.toLowerCase().replace(/[^a-z0-9]/g, "") === normPh);
+        }
+
+        // Keyword fallbacks
+        if (!matched) {
+          if (normPh.includes("name") || normPh.includes("student") || normPh.includes("recipient")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("name") || h.toLowerCase().includes("student"));
+          } else if (normPh.includes("mail")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("mail"));
+          } else if (normPh.includes("course") || normPh.includes("program")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("course") || h.toLowerCase().includes("program"));
+          } else if (normPh.includes("date")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("date"));
+          } else if (normPh.includes("duration")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("duration"));
+          } else if (normPh.includes("roll")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("roll"));
+          } else if (normPh.includes("venue") || normPh.includes("location")) {
+            matched = parseRes.headers.find(h => h.toLowerCase().includes("venue") || h.toLowerCase().includes("location"));
           }
+        }
+
+        if (matched) {
+          initialMap[ph] = matched;
         }
       });
 

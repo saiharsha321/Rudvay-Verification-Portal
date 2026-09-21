@@ -44,19 +44,45 @@ function getValueFromContext(key: string, context: Record<string, any>): string 
     return String(v);
   };
 
+  // 1. Direct exact key match
   if (context[key] !== undefined && context[key] !== null) {
     return formatValue(key, context[key]);
   }
 
-  const normKey = key.trim().toLowerCase().replace(/[\s_\-]+/g, "");
+  // 2. Case-insensitive & symbol-insensitive match (strips spaces, underscores, dots, hyphens)
+  const normKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   for (const [cKey, val] of Object.entries(context)) {
     if (val !== undefined && val !== null) {
-      const normCKey = cKey.trim().toLowerCase().replace(/[\s_\-]+/g, "");
+      const normCKey = cKey.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
       if (normKey === normCKey) {
         return formatValue(key, val);
       }
     }
   }
+
+  // 3. Fallback for common synonyms
+  if (normKey.includes("roll")) {
+    for (const [cKey, val] of Object.entries(context)) {
+      if (val !== undefined && val !== null) {
+        const normCKey = cKey.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (normCKey.includes("roll")) {
+          return formatValue(key, val);
+        }
+      }
+    }
+  }
+
+  if (normKey.includes("venue") || normKey.includes("location")) {
+    for (const [cKey, val] of Object.entries(context)) {
+      if (val !== undefined && val !== null) {
+        const normCKey = cKey.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (normCKey.includes("venue") || normCKey.includes("location")) {
+          return formatValue(key, val);
+        }
+      }
+    }
+  }
+
   return undefined;
 }
 
