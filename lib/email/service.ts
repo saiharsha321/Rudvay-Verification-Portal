@@ -16,10 +16,10 @@ const CONFIG_FILE = path.join(process.cwd(), "smtp_config.json");
 const DEFAULT_CONFIG: SmtpConfig = {
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT) || 587,
-  username: process.env.SMTP_USER || "",
+  username: process.env.SMTP_USER || process.env.SMTP_USERNAME || "",
   password: process.env.SMTP_PASSWORD || "",
-  fromName: "Rudvay Tech Certifications",
-  fromEmail: process.env.SMTP_FROM_EMAIL || "certificates@rudvaytech.com",
+  fromName: process.env.SMTP_FROM_NAME || "Rudvay Tech Certifications",
+  fromEmail: process.env.SMTP_FROM_EMAIL || "info.rudvay@gmail.com",
   useTls: true
 };
 
