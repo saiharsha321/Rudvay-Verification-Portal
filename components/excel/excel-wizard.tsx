@@ -41,6 +41,7 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [placeholders, setPlaceholders] = useState<string[]>(["name", "email", "course", "date", "duration"]);
   const [mapping, setMapping] = useState<Record<string, string>>({
     name: "",
     email: "",
@@ -64,21 +65,47 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
       const formData = new FormData();
       formData.append("file", selected);
 
-      const res = await apiClient<{
-        headers: string[];
-        sampleRows: any[];
-        totalRowCount: number;
-        suggestedMapping: Record<string, string>;
-      }>("/excel/parse-headers", {
-        method: "POST",
-        body: formData
+      const [parseRes, tplRes] = await Promise.all([
+        apiClient<{
+          headers: string[];
+          sampleRows: any[];
+          totalRowCount: number;
+          suggestedMapping: Record<string, string>;
+        }>("/excel/parse-headers", {
+          method: "POST",
+          body: formData
+        }),
+        apiClient<any>(`/templates/${templateId}`).catch(() => null)
+      ]);
+
+      const foundSet = new Set<string>(["name", "email", "course", "date", "duration"]);
+      if (tplRes?.designJson?.elements) {
+        tplRes.designJson.elements.forEach((elem: any) => {
+          if (elem.type === "TEXT" && elem.content) {
+            const matches = elem.content.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g);
+            for (const m of matches) {
+              if (m[1]) foundSet.add(m[1].trim());
+            }
+          }
+        });
+      }
+
+      const allPlaceholders = Array.from(foundSet);
+      setPlaceholders(allPlaceholders);
+      setHeaders(parseRes.headers);
+
+      const initialMap: Record<string, string> = { ...parseRes.suggestedMapping };
+      allPlaceholders.forEach(ph => {
+        if (!initialMap[ph]) {
+          const normPh = ph.toLowerCase().replace(/[\s_\-]+/g, "");
+          const matchedHeader = parseRes.headers.find(h => h.toLowerCase().replace(/[\s_\-]+/g, "") === normPh);
+          if (matchedHeader) {
+            initialMap[ph] = matchedHeader;
+          }
+        }
       });
 
-      setHeaders(res.headers);
-      setMapping(prev => ({
-        ...prev,
-        ...res.suggestedMapping
-      }));
+      setMapping(initialMap);
       setStep(2);
     } catch (err: any) {
       setError(err.message || "Failed to parse Excel file");
@@ -203,29 +230,26 @@ export const ExcelWizard: React.FC<ExcelWizardProps> = ({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              { key: "name", label: "Recipient Name *", required: true },
-              { key: "email", label: "Email Address *", required: true },
-              { key: "course", label: "Course / Program *", required: true },
-              { key: "date", label: "Completion Date *", required: true },
-              { key: "duration", label: "Duration / Hours", required: false },
-            ].map(item => (
-              <div key={item.key} className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  {item.label} <span className="text-brand-400 font-mono text-[10px]">&#123;&#123;{item.key}&#125;&#125;</span>
-                </label>
-                <select
-                  value={mapping[item.key] || ""}
-                  onChange={(e) => setMapping({ ...mapping, [item.key]: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-brand-500"
-                >
-                  <option value="">-- Select Column --</option>
-                  {headers.map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {placeholders.map(phKey => {
+              const isRequired = ["name", "email", "course"].includes(phKey.toLowerCase());
+              return (
+                <div key={phKey} className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <label className="block text-xs font-semibold text-slate-300 mb-2 capitalize">
+                    {phKey.replace(/_/g, " ")} {isRequired && "*"} <span className="text-brand-400 font-mono text-[10px]">&#123;&#123;{phKey}&#125;&#125;</span>
+                  </label>
+                  <select
+                    value={mapping[phKey] || ""}
+                    onChange={(e) => setMapping({ ...mapping, [phKey]: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                  >
+                    <option value="">-- Select Column --</option>
+                    {headers.map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex justify-between items-center pt-6 border-t border-slate-800">

@@ -60,7 +60,8 @@ export async function POST(
               duration: item.duration,
               templateId: job.templateId,
               issuerName: "Rudvay Tech",
-              verificationUrl: newCert.verificationUrl
+              verificationUrl: newCert.verificationUrl,
+              rowData: item.rowData
             });
 
             await sendCertificateEmail({

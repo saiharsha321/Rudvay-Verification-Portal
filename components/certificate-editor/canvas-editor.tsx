@@ -77,6 +77,8 @@ const DEFAULT_PLACEHOLDERS = [
   { token: "{{event}}", label: "Event Name" },
   { token: "{{date}}", label: "Issue Date" },
   { token: "{{duration}}", label: "Duration" },
+  { token: "{{Roll Num}}", label: "Roll Number" },
+  { token: "{{venue}}", label: "Venue / Location" },
   { token: "{{certificate_id}}", label: "Certificate ID" },
   { token: "{{verification_url}}", label: "Verification QR/Link" },
   { token: "{{email}}", label: "Recipient Email" },

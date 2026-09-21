@@ -13,6 +13,7 @@ export interface CertificatePdfData {
   templateId?: string;
   issuerName?: string;
   verificationUrl?: string;
+  rowData?: Record<string, any>;
 }
 
 function hexToRgb(hexStr?: string, defaultColor: RGB = rgb(0.1, 0.1, 0.1)): RGB {
@@ -34,10 +35,26 @@ function hexToRgb(hexStr?: string, defaultColor: RGB = rgb(0.1, 0.1, 0.1)): RGB 
   return defaultColor;
 }
 
-function interpolate(text: string, context: Record<string, string>): string {
+function getValueFromContext(key: string, context: Record<string, any>): string | undefined {
+  if (context[key] !== undefined && context[key] !== null) return String(context[key]);
+  const normKey = key.trim().toLowerCase().replace(/[\s_\-]+/g, "");
+  for (const [cKey, val] of Object.entries(context)) {
+    if (val !== undefined && val !== null) {
+      const normCKey = cKey.trim().toLowerCase().replace(/[\s_\-]+/g, "");
+      if (normKey === normCKey) {
+        return String(val);
+      }
+    }
+  }
+  return undefined;
+}
+
+function interpolate(text: string, context: Record<string, any>): string {
   if (!text) return "";
-  return text.replace(/\{\{\s*([a-zA-Z0-9_\-]+)\s*\}\}/g, (match, key) => {
-    return context[key] !== undefined ? context[key] : match;
+  return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, rawKey) => {
+    const key = rawKey.trim();
+    const val = getValueFromContext(key, context);
+    return val !== undefined ? val : match;
   });
 }
 
@@ -171,7 +188,8 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
   }
 
   // Placeholder mapping context
-  const context: Record<string, string> = {
+  const context: Record<string, any> = {
+    ...(data.rowData || {}),
     name: data.recipientName,
     recipient_name: data.recipientName,
     course: data.courseName,

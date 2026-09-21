@@ -51,13 +51,23 @@ export async function POST(req: NextRequest) {
       }
 
       seenEmails.add(email.toLowerCase());
-      validRows.push({
+
+      const mappedRow: Record<string, any> = {
+        ...row,
         name,
         email,
         course,
         date,
         duration
+      };
+
+      Object.entries(mapping).forEach(([placeholderKey, headerName]) => {
+        if (headerName && row[headerName as string] !== undefined) {
+          mappedRow[placeholderKey] = String(row[headerName as string]).trim();
+        }
       });
+
+      validRows.push(mappedRow);
     });
 
     return NextResponse.json({

@@ -13,6 +13,7 @@ export interface BulkJobItem {
   duration: string;
   certificateId: string;
   status: "PENDING" | "COMPLETED" | "FAILED";
+  rowData?: Record<string, any>;
 }
 
 export interface BulkJob {
@@ -52,7 +53,8 @@ export async function POST(req: NextRequest) {
         issueDate: row.date || new Date().toISOString().split("T")[0],
         duration: row.duration || "20 Hours",
         certificateId: certId,
-        status: "PENDING"
+        status: "PENDING",
+        rowData: row
       };
     });
 
