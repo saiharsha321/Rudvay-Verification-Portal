@@ -58,4 +58,5 @@ class ElementType(str, Enum):
     QR = "QR"
     LINE = "LINE"
     RECTANGLE = "RECTANGLE"
+    IMAGE = "IMAGE"
     IMAGE_PLACEHOLDER = "IMAGE_PLACEHOLDER"

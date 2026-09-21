@@ -32,6 +32,7 @@ class TemplateDesignJSON(BaseModel):
     width: float = 842.0  # Default A4 Landscape points (842 x 595)
     height: float = 595.0
     backgroundColor: str = "#FFFFFF"
+    backgroundImage: Optional[str] = None
     accentColor: str = "#D4AF37"  # Gold
     border: BorderConfig = Field(default_factory=BorderConfig)
     elements: List[TemplateElement] = []

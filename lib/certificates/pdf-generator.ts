@@ -87,6 +87,36 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
     color: bgColor,
   });
 
+  // 2b. Draw Custom Background Image if present
+  if ((design as any).backgroundImage) {
+    try {
+      const bgData = (design as any).backgroundImage as string;
+      let imgBuffer: Uint8Array | null = null;
+      let isPng = true;
+      if (bgData.startsWith("data:image/png;base64,")) {
+        const base64Str = bgData.replace(/^data:image\/png;base64,/, "");
+        imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
+        isPng = true;
+      } else if (bgData.startsWith("data:image/jpeg;base64,") || bgData.startsWith("data:image/jpg;base64,")) {
+        const base64Str = bgData.replace(/^data:image\/jpe?g;base64,/, "");
+        imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
+        isPng = false;
+      }
+
+      if (imgBuffer) {
+        const bgImg = isPng ? await pdfDoc.embedPng(imgBuffer) : await pdfDoc.embedJpg(imgBuffer);
+        page.drawImage(bgImg, {
+          x: 0,
+          y: 0,
+          width: pageWidth,
+          height: pageHeight,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to render background image in PDF:", err);
+    }
+  }
+
   // 3. Draw Borders
   const border = design.border;
   if (border && border.style !== "none") {
@@ -221,6 +251,33 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
           opacity: opacity,
         });
         hasDrawnQr = true;
+      } else if ((elem as any).type === "IMAGE" && elem.content) {
+        try {
+          const imgData = elem.content;
+          let imgBuffer: Uint8Array | null = null;
+          let isPng = true;
+          if (imgData.startsWith("data:image/png;base64,")) {
+            const base64Str = imgData.replace(/^data:image\/png;base64,/, "");
+            imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
+            isPng = true;
+          } else if (imgData.startsWith("data:image/jpeg;base64,") || imgData.startsWith("data:image/jpg;base64,")) {
+            const base64Str = imgData.replace(/^data:image\/jpe?g;base64,/, "");
+            imgBuffer = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
+            isPng = false;
+          }
+          if (imgBuffer) {
+            const elemImg = isPng ? await pdfDoc.embedPng(imgBuffer) : await pdfDoc.embedJpg(imgBuffer);
+            page.drawImage(elemImg, {
+              x: elemX,
+              y: elemY,
+              width: elem.width,
+              height: elem.height,
+              opacity: opacity,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to render element image in PDF:", err);
+        }
       }
     }
   }

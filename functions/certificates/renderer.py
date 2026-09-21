@@ -66,6 +66,17 @@ def render_certificate_pdf(
         c.setFillColor(bg_color)
         c.rect(0, 0, page_width, page_height, fill=1, stroke=0)
         
+        # 1b. Custom Background Image if present
+        bg_img_data = getattr(design, "backgroundImage", None)
+        if bg_img_data and isinstance(bg_img_data, str) and bg_img_data.startswith("data:image"):
+            try:
+                import base64
+                header, encoded = bg_img_data.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                c.drawImage(ImageReader(io.BytesIO(img_bytes)), 0, 0, width=page_width, height=page_height, mask='auto')
+            except Exception as e:
+                logger.error(f"Error rendering background image: {e}")
+        
         # 2. Draw Decorative Borders
         border = design.border
         if border.style != "none":
@@ -176,6 +187,14 @@ def render_certificate_pdf(
                     fill=1 if elem.fillColor else 0,
                     stroke=1 if elem.strokeColor else 0
                 )
+            elif str(elem.type) == "IMAGE" and elem.content and elem.content.startswith("data:image"):
+                try:
+                    import base64
+                    header, encoded = elem.content.split(",", 1)
+                    img_bytes = base64.b64decode(encoded)
+                    c.drawImage(ImageReader(io.BytesIO(img_bytes)), elem_x, elem_y, width=elem.width, height=elem.height, mask='auto')
+                except Exception as e:
+                    logger.error(f"Error rendering element image: {e}")
             
             c.restoreState()
         
