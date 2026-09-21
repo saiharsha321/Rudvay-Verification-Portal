@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
+import { recordEmailLog } from "./logs";
 
 export interface SmtpConfig {
   host: string;
@@ -111,15 +112,43 @@ export async function sendCertificateEmail(params: {
         ]
       });
 
+      recordEmailLog({
+        certificateId: params.certificateId,
+        recipientEmail: params.toEmail,
+        recipientName: params.recipientName,
+        courseName: params.courseName,
+        status: "SENT",
+        senderEmail: config.fromEmail || config.username,
+        messageId: info.messageId
+      });
+
       return { success: true, message: "Email sent successfully", messageId: info.messageId };
     } catch (err: any) {
       console.warn("SMTP send encountered an error:", err.message);
+      recordEmailLog({
+        certificateId: params.certificateId,
+        recipientEmail: params.toEmail,
+        recipientName: params.recipientName,
+        courseName: params.courseName,
+        status: "FAILED",
+        senderEmail: config.fromEmail || config.username,
+        errorMessage: err.message
+      });
       return { success: false, message: `SMTP error: ${err.message}` };
     }
   }
 
   // If no SMTP password configured yet, log dispatch notification
   console.log(`[SMTP Notice] Certificate ${params.certificateId} email prepared for ${params.toEmail} (Configure SMTP in Admin > SMTP Config for direct outbound delivery)`);
+  recordEmailLog({
+    certificateId: params.certificateId,
+    recipientEmail: params.toEmail,
+    recipientName: params.recipientName,
+    courseName: params.courseName,
+    status: "PREPARED",
+    senderEmail: config.fromEmail || "info.rudvay@gmail.com",
+    errorMessage: "SMTP credentials not provided"
+  });
   return { 
     success: true, 
     message: `Certificate prepared. (To deliver live emails directly to inbox, configure SMTP in /admin/smtp)` 

@@ -130,20 +130,34 @@ export default function SingleCertificatePage() {
         )}
 
         {result && (
-          <div className="mb-8 p-6 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-slate-200">
-            <div className="flex items-center gap-3 text-emerald-400 font-bold mb-2">
+          <div className="mb-8 p-6 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-slate-200 space-y-3">
+            <div className="flex items-center gap-3 text-emerald-400 font-bold">
               <CheckCircle2 className="w-5 h-5" /> Certificate Successfully Generated & Issued!
             </div>
-            <p className="text-xs text-slate-300 mb-4">
+            <p className="text-xs text-slate-300">
               Cryptographic ID assigned: <span className="font-mono font-bold text-white bg-slate-900 px-2 py-0.5 rounded">{result.certificateId}</span>
             </p>
-            <div className="flex gap-3">
+            {result.emailDispatch && (
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono">
+                <span className="text-slate-400">SMTP Email Status: </span>
+                <span className={result.emailDispatch.success ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                  {result.emailDispatch.message}
+                </span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3 pt-1">
               <Link
                 href={`/verify/${result.certificateId}`}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> View Public Verification
+              </Link>
+              <Link
+                href="/coordinator/emails"
+                className="inline-flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-brand-300 font-bold px-4 py-2 rounded-xl border border-slate-700 transition-colors"
+              >
+                View Sent Mails Log
               </Link>
             </div>
           </div>
