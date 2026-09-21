@@ -1,8 +1,33 @@
 import fs from "fs";
 import path from "path";
 import { INITIAL_TEMPLATES, TemplateRecord } from "./default-templates";
+import { db } from "../firebase/client";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const DATA_FILE = path.join(process.cwd(), "templates_data.json");
+
+async function syncTemplateToFirestore(tpl: TemplateRecord) {
+  try {
+    if (db && tpl.templateId) {
+      await setDoc(doc(db, "templates", tpl.templateId), {
+        ...tpl,
+        updatedAt: tpl.updatedAt || new Date().toISOString()
+      }, { merge: true });
+    }
+  } catch (err) {
+    console.warn("Firestore sync notice (template):", err);
+  }
+}
+
+async function syncTemplateDeleteToFirestore(id: string) {
+  try {
+    if (db && id) {
+      await deleteDoc(doc(db, "templates", id));
+    }
+  } catch (err) {
+    console.warn("Firestore delete notice (template):", err);
+  }
+}
 
 function loadTemplatesFromDisk(): TemplateRecord[] {
   try {
@@ -83,6 +108,7 @@ export function saveTemplateStore(tpl: {
 
   saveTemplatesToDisk(currentTemplates);
   memoryTemplates = currentTemplates;
+  syncTemplateToFirestore(updatedRecord);
   return updatedRecord;
 }
 
@@ -93,6 +119,7 @@ export function deleteTemplateStore(id: string): boolean {
   if (filtered.length < initLength) {
     saveTemplatesToDisk(filtered);
     memoryTemplates = filtered;
+    syncTemplateDeleteToFirestore(id);
     return true;
   }
   return false;

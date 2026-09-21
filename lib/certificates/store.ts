@@ -1,5 +1,20 @@
 import fs from "fs";
 import path from "path";
+import { db } from "../firebase/client";
+import { doc, setDoc } from "firebase/firestore";
+
+async function syncCertToFirestore(cert: CertRecord) {
+  try {
+    if (db && cert.certificateId) {
+      await setDoc(doc(db, "certificates", cert.certificateId), {
+        ...cert,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    }
+  } catch (err) {
+    console.warn("Firestore sync notice (certificate):", err);
+  }
+}
 
 export interface CertRecord {
   certificateId: string;
@@ -119,6 +134,8 @@ export function saveCert(cert: CertRecord): CertRecord {
   const disk = loadFromDisk();
   disk[normalizedId] = fullCert;
   saveToDisk(disk);
+
+  syncCertToFirestore(fullCert);
 
   return fullCert;
 }
