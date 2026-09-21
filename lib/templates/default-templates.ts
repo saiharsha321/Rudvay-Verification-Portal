@@ -581,15 +581,9 @@ export const INITIAL_TEMPLATES: TemplateRecord[] = [
   SAMPLE_TEMPLATE_TESTING1
 ];
 
-import { getTemplateByIdStore } from "./store";
-
 export function getTemplateById(templateId?: string): TemplateRecord {
   if (!templateId) return SAMPLE_TEMPLATE_CLASSIC_GOLD;
   
-  // Check store first (persisted saved custom templates)
-  const storeFound = getTemplateByIdStore(templateId);
-  if (storeFound) return storeFound;
-
   const found = INITIAL_TEMPLATES.find(t => t.templateId === templateId);
   if (found) return found;
 

@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, RGB } from "pdf-lib";
 import QRCode from "qrcode";
 import { getTemplateById, TemplateRecord } from "../templates/default-templates";
+import { getTemplateByIdStore } from "../templates/store";
 
 export interface CertificatePdfData {
   certificateId: string;
@@ -41,7 +42,13 @@ function interpolate(text: string, context: Record<string, string>): string {
 }
 
 export async function generateCertificatePdf(data: CertificatePdfData): Promise<Uint8Array> {
-  const template: TemplateRecord = getTemplateById(data.templateId);
+  let template: TemplateRecord | undefined;
+  if (data.templateId) {
+    template = getTemplateByIdStore(data.templateId);
+  }
+  if (!template) {
+    template = getTemplateById(data.templateId);
+  }
   const design = template.designJson || {
     width: 842,
     height: 595,
