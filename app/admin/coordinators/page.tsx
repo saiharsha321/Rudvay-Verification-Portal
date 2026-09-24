@@ -13,7 +13,8 @@ import {
   ArrowLeft, 
   Loader2, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 
 export default function CoordinatorsManagementPage() {
@@ -53,7 +54,7 @@ export default function CoordinatorsManagementPage() {
         method: "POST",
         body: JSON.stringify({ name, email, password })
       });
-      setSuccess(`Coordinator '${name}' successfully provisioned with custom claims.`);
+      setSuccess(`Coordinator '${name}' successfully provisioned and saved.`);
       setName("");
       setEmail("");
       setPassword("");
@@ -76,6 +77,19 @@ export default function CoordinatorsManagementPage() {
       alert("Failed to toggle coordinator status");
     }
   };
+
+  const handleDelete = async (uid: string, coordName: string) => {
+    if (!confirm(`Are you sure you want to remove coordinator '${coordName}'?`)) return;
+    try {
+      await apiClient<any>(`/admin/coordinators/${uid}`, {
+        method: "DELETE"
+      });
+      fetchCoordinators();
+    } catch (e) {
+      alert("Failed to delete coordinator");
+    }
+  };
+
 
   return (
     <RoleGuard allowedRoles={["ADMIN"]}>
@@ -191,13 +205,21 @@ export default function CoordinatorsManagementPage() {
                       </span>
                       <button
                         onClick={() => handleToggle(c.coordinatorId, c.active)}
-                        className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-900 rounded-lg border border-slate-800"
+                        className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-900 rounded-lg border border-slate-800 transition-colors"
                       >
                         {c.active ? "Disable" : "Enable"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.coordinatorId, c.name)}
+                        className="text-xs text-red-400 hover:text-red-300 p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg border border-red-500/20 transition-colors"
+                        title="Delete Coordinator"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                 ))}
+
               </div>
             )}
           </div>
