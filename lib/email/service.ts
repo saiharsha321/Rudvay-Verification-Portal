@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { db } from "../firebase/client";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { recordEmailLog } from "./logs";
+import { getAppBaseUrl, sanitizeVerificationUrl } from "../utils/url";
 
 export interface SmtpConfig {
   host: string;
@@ -59,7 +60,7 @@ export async function sendCertificateEmail(params: {
   verificationUrl?: string;
 }): Promise<{ success: boolean; message: string; messageId?: string }> {
   const config = await getSmtpConfig();
-  const verifyUrl = params.verificationUrl || `http://localhost:3000/verify/${params.certificateId}`;
+  const verifyUrl = sanitizeVerificationUrl(params.verificationUrl, params.certificateId);
 
   const cleanUser = config.username ? config.username.trim() : "";
   const cleanPass = config.password ? config.password.replace(/\s+/g, "") : "";

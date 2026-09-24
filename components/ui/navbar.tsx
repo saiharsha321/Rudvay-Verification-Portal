@@ -102,6 +102,15 @@ export const Navbar: React.FC = () => {
                   Bulk Excel
                 </Link>
                 <Link 
+                  href="/coordinator/jobs" 
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    isActive("/coordinator/jobs") ? "bg-brand-500/10 text-brand-400 border border-brand-500/20" : "text-slate-300 hover:text-white hover:bg-slate-800/50"
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-gold-400" />
+                  Previous Batches
+                </Link>
+                <Link 
                   href="/coordinator/emails" 
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
                     isActive("/coordinator/emails") ? "bg-brand-500/10 text-brand-400 border border-brand-500/20" : "text-slate-300 hover:text-white hover:bg-slate-800/50"
@@ -110,6 +119,7 @@ export const Navbar: React.FC = () => {
                   <Mail className="w-4 h-4 text-slate-400" />
                   Sent Mails
                 </Link>
+
               </>
             )}
 

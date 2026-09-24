@@ -14,6 +14,7 @@ import {
   QrCode
 } from "lucide-react";
 import QRCode from "qrcode";
+import { sanitizeVerificationUrl } from "@/lib/utils/url";
 
 export interface PublicCertData {
   certificateId: string;
@@ -40,7 +41,7 @@ export const CertificateBadge: React.FC<CertificateBadgeProps> = ({ data, loadin
   const [downloading, setDownloading] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
-  const verifyUrl = data?.verificationUrl || (typeof window !== "undefined" && data?.certificateId ? `${window.location.origin}/verify/${data.certificateId}` : "");
+  const verifyUrl = sanitizeVerificationUrl(data?.verificationUrl, data?.certificateId);
 
   useEffect(() => {
     if (verifyUrl) {

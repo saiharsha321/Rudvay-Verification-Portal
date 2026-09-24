@@ -32,6 +32,7 @@ certificates_data.json
 smtp_config.json
 templates_data.json
 email_logs.json
+jobs_data.json
 
 # Debug / logs
 npm-debug.log*

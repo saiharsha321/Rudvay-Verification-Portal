@@ -15,7 +15,8 @@ import {
   Loader2, 
   ExternalLink,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -28,7 +29,9 @@ export default function JobDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [downloadingBatch, setDownloadingBatch] = useState(false);
   const autoRunRef = useRef(false);
+
 
   const fetchJobStatus = async () => {
     if (!jobId) return;
@@ -91,6 +94,33 @@ export default function JobDetailsPage() {
     }
   };
 
+  const handleDownloadBatchPdf = async () => {
+    if (!jobId) return;
+    setDownloadingBatch(true);
+    try {
+      const res = await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}/download`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Failed to download batch PDF");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cleanName = (job?.eventName || "Batch").replace(/[^a-zA-Z0-9_-]/g, "_");
+      a.download = `Rudvay_Certificates_${cleanName}_${jobId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Download failed: " + (err.message || "Unknown error"));
+    } finally {
+      setDownloadingBatch(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-slate-400">
@@ -126,9 +156,9 @@ export default function JobDetailsPage() {
   return (
     <RoleGuard allowedRoles={["COORDINATOR", "ADMIN"]}>
       <div className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
-        <div className="mb-6">
-          <Link href="/coordinator" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-white">
-            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        <div className="mb-6 flex items-center justify-between">
+          <Link href="/coordinator/jobs" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4" /> Back to Previous Batches
           </Link>
         </div>
 
@@ -141,7 +171,16 @@ export default function JobDetailsPage() {
               <div className="text-xs text-slate-400 font-mono mt-1">ID: {job.jobId}</div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleDownloadBatchPdf}
+                disabled={downloadingBatch}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-glow transition-all disabled:opacity-50"
+              >
+                {downloadingBatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-white" />}
+                {downloadingBatch ? "Generating Merged PDF..." : "Download Entire Batch PDF"}
+              </button>
+
               {!isJobFinished && (
                 <button
                   onClick={handleStartAutoRunner}
@@ -165,6 +204,7 @@ export default function JobDetailsPage() {
               )}
             </div>
           </div>
+
 
           {/* Progress Bar */}
           <div className="mt-6">

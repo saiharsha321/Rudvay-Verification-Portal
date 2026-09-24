@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { getJob } from "@/lib/jobs/store";
 
 export async function GET(
   req: NextRequest,
@@ -8,15 +7,14 @@ export async function GET(
 ) {
   const { id } = params;
   try {
-    if (db) {
-      const snap = await getDoc(doc(db, "generationJobs", id));
-      if (snap.exists()) {
-        return NextResponse.json(snap.data());
-      }
+    const job = await getJob(id);
+    if (job) {
+      return NextResponse.json(job);
     }
   } catch (err: any) {
-    console.warn("Firestore job fetch notice:", err);
+    console.warn("Job fetch notice:", err);
   }
 
   return NextResponse.json({ detail: "Job not found" }, { status: 404 });
 }
+

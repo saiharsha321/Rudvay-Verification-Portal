@@ -30,7 +30,7 @@ const DEFAULT_CERTS: Record<string, CertRecord> = {
     issueDate: "2026-09-08",
     duration: "24 Hours",
     issuerName: "Rudvay Tech",
-    verificationUrl: "http://localhost:3000/verify/RT-2026-7K9P4X"
+    verificationUrl: "https://certifications.rudvay.tech/verify/RT-2026-7K9P4X"
   },
   "RT-2026-9A8B7C": {
     certificateId: "RT-2026-9A8B7C",
@@ -42,9 +42,10 @@ const DEFAULT_CERTS: Record<string, CertRecord> = {
     issueDate: "2026-09-08",
     duration: "30 Hours",
     issuerName: "Rudvay Tech",
-    verificationUrl: "http://localhost:3000/verify/RT-2026-9A8B7C"
+    verificationUrl: "https://certifications.rudvay.tech/verify/RT-2026-9A8B7C"
   }
 };
+
 
 export async function getCert(id: string): Promise<CertRecord | undefined> {
   if (!id) return undefined;

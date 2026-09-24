@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCert } from "@/lib/certificates/store";
+import { sanitizeVerificationUrl } from "@/lib/utils/url";
 
 export async function GET(
   req: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
   if (!cert) {
     return NextResponse.json({ detail: `Certificate with ID '${id}' was not found in our registry.` }, { status: 404 });
   }
+
+  const cleanVerifyUrl = sanitizeVerificationUrl(cert.verificationUrl, cert.certificateId, req);
 
   if (cert.status === "REVOKED") {
     return NextResponse.json({
@@ -25,7 +28,7 @@ export async function GET(
       issuer: cert.issuerName || "Rudvay Tech",
       issuerName: cert.issuerName || "Rudvay Tech",
       revocationReason: cert.revocationReason || "Revoked by Administrator",
-      verificationUrl: cert.verificationUrl
+      verificationUrl: cleanVerifyUrl
     }, { status: 410 });
   }
 
@@ -40,6 +43,7 @@ export async function GET(
     duration: cert.duration || "20 Hours",
     issuer: cert.issuerName || "Rudvay Tech",
     issuerName: cert.issuerName || "Rudvay Tech",
-    verificationUrl: cert.verificationUrl
+    verificationUrl: cleanVerifyUrl
   });
 }
+

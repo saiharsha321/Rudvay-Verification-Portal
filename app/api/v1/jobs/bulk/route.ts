@@ -1,35 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase/client";
-import { doc, setDoc } from "firebase/firestore";
-
-export interface BulkJobItem {
-  itemId: string;
-  jobId: string;
-  recipientName: string;
-  recipientEmail: string;
-  courseName: string;
-  eventName: string;
-  issueDate: string;
-  duration: string;
-  certificateId: string;
-  status: "PENDING" | "COMPLETED" | "FAILED";
-  rowData?: Record<string, any>;
-}
-
-export interface BulkJob {
-  jobId: string;
-  eventId: string;
-  eventName: string;
-  templateId: string;
-  templateVersion: number;
-  totalRecords: number;
-  processedCount: number;
-  successCount: number;
-  failedCount: number;
-  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
-  items: BulkJobItem[];
-  createdAt: string;
-}
+import { saveJob, BulkJob, BulkJobItem } from "@/lib/jobs/store";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,9 +43,8 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString()
     };
 
-    if (db) {
-      await setDoc(doc(db, "generationJobs", jobId), newJob, { merge: true });
-    }
+    await saveJob(newJob);
+
 
     return NextResponse.json({
       jobId,

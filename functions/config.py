@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class Settings(BaseModel):
     PROJECT_NAME: str = "Rudvay Tech Certificate Platform"
     FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "rudvaytech-cert")
-    VERIFY_BASE_URL: str = os.getenv("VERIFY_BASE_URL", "https://verify.rudvaytech.com/c")
+    VERIFY_BASE_URL: str = os.getenv("VERIFY_BASE_URL", "https://certifications.rudvay.tech/verify")
     
     # SMTP Defaults (from env/Secret Manager)
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.mailgun.org")

@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { getTemplateById, TemplateRecord } from "../templates/default-templates";
 import { getTemplateByIdStore } from "../templates/store";
 import { formatExcelDate } from "../utils/date";
+import { getAppBaseUrl, sanitizeVerificationUrl } from "../utils/url";
 
 export interface CertificatePdfData {
   certificateId: string;
@@ -124,7 +125,7 @@ export async function generateCertificatePdf(data: CertificatePdfData): Promise<
   const fontHelveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
   const fontTimesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-  const verificationUrl = data.verificationUrl || `http://localhost:3000/verify/${data.certificateId}`;
+  const verificationUrl = sanitizeVerificationUrl(data.verificationUrl, data.certificateId);
 
   // 1. Generate Crisp QR Code PNG
   const qrPngBuffer = await QRCode.toBuffer(verificationUrl, {
